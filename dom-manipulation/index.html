@@ -7,7 +7,14 @@
 </head>
 <body>
     <h1>Dynamic Quote Generator</h1>
-    
+
+    <!-- Category Filter -->
+    <label for="categoryFilter">Filter by Category:</label>
+    <select id="categoryFilter" onchange="filterQuotes()">
+        <option value="all">All Categories</option>
+        <!-- Categories will be dynamically added here -->
+    </select>
+
     <!-- Display area for the random quote -->
     <div id="quoteDisplay"></div>
     
@@ -25,7 +32,6 @@
     <button id="exportQuotes">Export Quotes to JSON</button>
     <input type="file" id="importFile" accept=".json" />
     
-    <!-- Link to the JavaScript file -->
     <script src="script.js"></script>
 </body>
 </html>

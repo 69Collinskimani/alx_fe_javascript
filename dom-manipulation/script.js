@@ -1,5 +1,5 @@
-// Array to store quotes
 let quotes = [];
+let categories = new Set(); // To store unique categories
 
 // Save quotes to local storage
 function saveQuotes() {
@@ -11,25 +11,58 @@ function loadQuotes() {
     const storedQuotes = localStorage.getItem("quotes");
     if (storedQuotes) {
         quotes = JSON.parse(storedQuotes);
+        populateCategories(); // Populate categories from loaded quotes
     }
 }
 
-// Show a random quote and save it to session storage
-function showRandomQuote() {
-    const randomIndex = Math.floor(Math.random() * quotes.length);
-    const quote = quotes[randomIndex];
-    document.getElementById("quoteDisplay").textContent = `"${quote.text}" - ${quote.category}`;
-    sessionStorage.setItem("lastViewedQuote", JSON.stringify(quote)); // Save to session storage
+// Populate the category filter dropdown
+function populateCategories() {
+    categories = new Set(quotes.map(quote => quote.category)); // Get unique categories
+    const categoryFilter = document.getElementById("categoryFilter");
+
+    // Clear previous options
+    categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+
+    categories.forEach(category => {
+        const option = document.createElement("option");
+        option.value = category;
+        option.textContent = category;
+        categoryFilter.appendChild(option);
+    });
 }
 
-// Add a new quote and save to local storage
+// Filter quotes based on the selected category
+function filterQuotes() {
+    const selectedCategory = document.getElementById("categoryFilter").value;
+    const filteredQuotes = selectedCategory === "all" ? quotes : quotes.filter(quote => quote.category === selectedCategory);
+
+    if (filteredQuotes.length > 0) {
+        const randomIndex = Math.floor(Math.random() * filteredQuotes.length);
+        const quote = filteredQuotes[randomIndex];
+        document.getElementById("quoteDisplay").textContent = `"${quote.text}" - ${quote.category}`;
+    } else {
+        document.getElementById("quoteDisplay").textContent = "No quotes available for this category.";
+    }
+
+    // Save the last selected category to local storage
+    localStorage.setItem("selectedCategory", selectedCategory);
+}
+
+// Show a random quote
+function showRandomQuote() {
+    const selectedCategory = document.getElementById("categoryFilter").value;
+    filterQuotes(selectedCategory);
+}
+
+// Add a new quote
 function addQuote() {
     const newQuoteText = document.getElementById("newQuoteText").value;
     const newQuoteCategory = document.getElementById("newQuoteCategory").value;
 
     if (newQuoteText && newQuoteCategory) {
         quotes.push({ text: newQuoteText, category: newQuoteCategory });
-        saveQuotes(); // Save to local storage
+        saveQuotes();
+        populateCategories();
         document.getElementById("newQuoteText").value = '';
         document.getElementById("newQuoteCategory").value = '';
     } else {
@@ -56,20 +89,24 @@ function importFromJsonFile(event) {
         const importedQuotes = JSON.parse(event.target.result);
         quotes.push(...importedQuotes); // Merge new quotes with the existing array
         saveQuotes(); // Save the updated quotes array to local storage
+        populateCategories(); // Re-populate the categories
         alert('Quotes imported successfully!');
     };
     
     fileReader.readAsText(event.target.files[0]);
 }
 
-// Load quotes and the last viewed quote on page load
+// Load quotes and apply the last selected filter on page load
 window.onload = function() {
     loadQuotes();
-    const lastQuote = sessionStorage.getItem("lastViewedQuote");
-    if (lastQuote) {
-        const quote = JSON.parse(lastQuote);
-        document.getElementById("quoteDisplay").textContent = `"${quote.text}" - ${quote.category}`;
+
+    // Restore the last selected category
+    const lastCategory = localStorage.getItem("selectedCategory");
+    if (lastCategory) {
+        document.getElementById("categoryFilter").value = lastCategory;
     }
+
+    filterQuotes(); // Apply the filter immediately
 }
 
 // Event listeners
