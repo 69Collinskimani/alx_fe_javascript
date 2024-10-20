@@ -1,5 +1,6 @@
 let quotes = [];
-let categories = new Set(); // To store unique categories
+let categories = new Set();
+const API_URL = "https://jsonplaceholder.typicode.com/posts";
 
 // Save quotes to local storage
 function saveQuotes() {
@@ -11,16 +12,15 @@ function loadQuotes() {
     const storedQuotes = localStorage.getItem("quotes");
     if (storedQuotes) {
         quotes = JSON.parse(storedQuotes);
-        populateCategories(); // Populate categories from loaded quotes
+        populateCategories();
     }
 }
 
 // Populate the category filter dropdown
 function populateCategories() {
-    categories = new Set(quotes.map(quote => quote.category)); // Get unique categories
+    categories = new Set(quotes.map(quote => quote.category));
     const categoryFilter = document.getElementById("categoryFilter");
 
-    // Clear previous options
     categoryFilter.innerHTML = '<option value="all">All Categories</option>';
 
     categories.forEach(category => {
@@ -44,14 +44,12 @@ function filterQuotes() {
         document.getElementById("quoteDisplay").textContent = "No quotes available for this category.";
     }
 
-    // Save the last selected category to local storage
     localStorage.setItem("selectedCategory", selectedCategory);
 }
 
 // Show a random quote
 function showRandomQuote() {
-    const selectedCategory = document.getElementById("categoryFilter").value;
-    filterQuotes(selectedCategory);
+    filterQuotes();
 }
 
 // Add a new quote
@@ -60,8 +58,10 @@ function addQuote() {
     const newQuoteCategory = document.getElementById("newQuoteCategory").value;
 
     if (newQuoteText && newQuoteCategory) {
-        quotes.push({ text: newQuoteText, category: newQuoteCategory });
+        const newQuote = { text: newQuoteText, category: newQuoteCategory };
+        quotes.push(newQuote);
         saveQuotes();
+        postQuotesToServer(newQuote); // Sync new quote with server
         populateCategories();
         document.getElementById("newQuoteText").value = '';
         document.getElementById("newQuoteCategory").value = '';
@@ -72,7 +72,7 @@ function addQuote() {
 
 // Export quotes to a JSON file
 function exportQuotesToJson() {
-    const dataStr = JSON.stringify(quotes, null, 2); // Pretty print the JSON
+    const dataStr = JSON.stringify(quotes, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -84,29 +84,70 @@ function exportQuotesToJson() {
 // Import quotes from a JSON file
 function importFromJsonFile(event) {
     const fileReader = new FileReader();
-    
     fileReader.onload = function(event) {
         const importedQuotes = JSON.parse(event.target.result);
-        quotes.push(...importedQuotes); // Merge new quotes with the existing array
-        saveQuotes(); // Save the updated quotes array to local storage
-        populateCategories(); // Re-populate the categories
+        quotes.push(...importedQuotes);
+        saveQuotes();
+        populateCategories();
         alert('Quotes imported successfully!');
     };
-    
     fileReader.readAsText(event.target.files[0]);
 }
 
-// Load quotes and apply the last selected filter on page load
+// Fetch quotes from the server
+function fetchQuotesFromServer() {
+    fetch(API_URL)
+        .then(response => response.json())
+        .then(data => {
+            const serverQuotes = data.map(item => ({
+                text: item.title,
+                category: 'Server'
+            }));
+            syncWithServer(serverQuotes);
+        })
+        .catch(error => console.error('Error fetching quotes from server:', error));
+}
+
+// Sync local quotes with server quotes
+function syncWithServer(serverQuotes) {
+    const localQuotes = [...quotes];
+    const updatedQuotes = serverQuotes.concat(localQuotes.filter(localQuote => {
+        return !serverQuotes.some(serverQuote => serverQuote.text === localQuote.text);
+    }));
+
+    quotes = updatedQuotes;
+    saveQuotes();
+    populateCategories();
+    notifyConflictResolution();
+}
+
+// Notify user about conflict resolution
+function notifyConflictResolution() {
+    const notificationDiv = document.createElement('div');
+    notificationDiv.textContent = "Data was synced with the server, and conflicts were resolved.";
+    notificationDiv.style.background = "#f8d7da";
+    notificationDiv.style.color = "#721c24";
+    notificationDiv.style.padding = "10px";
+    document.body.prepend(notificationDiv);
+
+    setTimeout(() => {
+        notificationDiv.remove();
+    }, 5000);
+}
+
+// Periodic data fetching from server
+function startDataSync() {
+    setInterval(fetchQuotesFromServer, 30000);
+}
+
 window.onload = function() {
     loadQuotes();
-
-    // Restore the last selected category
     const lastCategory = localStorage.getItem("selectedCategory");
     if (lastCategory) {
         document.getElementById("categoryFilter").value = lastCategory;
     }
-
-    filterQuotes(); // Apply the filter immediately
+    filterQuotes();
+    startDataSync();
 }
 
 // Event listeners
